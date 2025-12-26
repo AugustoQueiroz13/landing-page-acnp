@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, ExternalLink, Mail, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,6 +9,28 @@ export default function ConfirmationPage() {
 
     // Recupera os dados passados pela LandingPage (link de pagamento e nome)
     const { paymentUrl, nome } = location.state || {};
+
+    useEffect(() => {
+        // Se não tiver dados da compra (acessou direto pela URL), volta pra home
+        if (!paymentUrl) {
+            navigate('/');
+            return;
+        }
+
+        // --- RASTREAMENTO DE VENDA (FACEBOOK PIXEL) ---
+        // Isso avisa ao Facebook que uma venda de R$ 294,00 aconteceu.
+        if (window.fbq) {
+            window.fbq('track', 'Purchase', {
+                value: 294.00,
+                currency: 'BRL',
+                content_name: 'Curso Robótica Completo',
+                content_ids: ['curso-robotica-acnp'],
+                content_type: 'product'
+            });
+        }
+        // ----------------------------------------------
+
+    }, [paymentUrl, navigate]); // Dependências do useEffect
 
     // Proteção: Se o usuário tentar acessar direto pela URL sem comprar, volta pra home
     if (!paymentUrl) {

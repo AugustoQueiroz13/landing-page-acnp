@@ -194,6 +194,7 @@ export default function LandingPage() {
 
   const handlePurchase = async (event) => {
     event.preventDefault();
+    if (window.fbq) window.fbq('track', 'InitiateCheckout');
     setIsLoading(true);
     const purchaseData = {
       nome: formData.nome,
