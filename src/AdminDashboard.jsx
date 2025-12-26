@@ -5,12 +5,16 @@ import {
     LayoutDashboard, Package, Users, LogOut,
     Truck, CheckCircle, Search, Edit, X, Save,
     ExternalLink, AlertCircle, Key, UserPlus, Eye,
-    BarChart2, Tag, Shield, Mail, Activity, EyeOff
+    BarChart2, Tag, Shield, Mail, Activity, EyeOff, Send, // <--- Send mantido
+    DollarSign, TrendingUp, ShoppingBag, Clock // <--- Novos ícones do Dashboard NASA
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, Legend, BarChart, Bar // <--- Adicionado AreaChart e Legend
+} from 'recharts';
 
-// Cores para Gráficos
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+// Cores Modernas
+const COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#6366F1'];
 
 const translateStatus = (status) => {
     const map = {
@@ -25,33 +29,53 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('pt-BR') + ' ' + new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
+// Componente Card de KPI (Novo)
+const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between hover:shadow-md transition-shadow">
+        <div>
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">{title}</p>
+            <h3 className="text-2xl font-extrabold text-gray-800 mt-1">{value}</h3>
+            {subtext && <p className={`text-xs mt-2 font-medium ${subtext.includes('+') ? 'text-green-500' : 'text-gray-400'}`}>{subtext}</p>}
+        </div>
+        <div className={`p-3 rounded-xl ${color} text-white shadow-lg`}>
+            <Icon size={24} />
+        </div>
+    </div>
+);
+
 export default function AdminDashboard() {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('metrics'); // Começa nas Métricas
+    const [activeTab, setActiveTab] = useState('metrics');
     const [data, setData] = useState({ orders: [], students: [] });
-    const [metrics, setMetrics] = useState({ sales: [], ages: [] });
+
+    // ESTADO ATUALIZADO PARA O NOVO FORMATO DE DADOS (KPIs + Charts)
+    const [metrics, setMetrics] = useState({
+        kpis: { revenue: 0, students: 0, pending: 0, ticket: 0, conversion: 0 },
+        charts: { sales: [], status: [] },
+        recent: []
+    });
+
     const [logs, setLogs] = useState([]);
     const [coupons, setCoupons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // --- MODAIS & ESTADOS DE EDIÇÃO ---
-    const [modalType, setModalType] = useState(null); // 'TRACKING', 'EDIT_USER', 'CHANGE_PASSWORD', 'NEW_USER', 'NEW_COUPON', 'NEW_ADMIN', 'CONFIRM_EMAIL'
+    // --- MODAIS & ESTADOS ---
+    const [modalType, setModalType] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
 
     // Forms
     const [trackingData, setTrackingData] = useState({ code: '', carrier: 'Correios', customCarrier: '', url: '' });
     const [userData, setUserData] = useState({ name: '', email: '', phone: '' });
     const [newPassword, setNewPassword] = useState('');
-
-    // Forms Novos (NASA + V2)
     const [couponData, setCouponData] = useState({ code: '', discount: '' });
     const [emailData, setEmailData] = useState({ subject: '', message: '' });
     const [newAdminData, setNewAdminData] = useState({ name: '', email: '', password: '' });
-    // Estado para Novo Aluno Manual (V2)
-    const [newStudentData, setNewStudentData] = useState({
-        name: '', email: '', cpf: '', phone: '', age: '', parentName: ''
-    });
+    const [newStudentData, setNewStudentData] = useState({ name: '', email: '', cpf: '', phone: '', age: '', parentName: '' });
 
     useEffect(() => {
         fetchData();
@@ -62,13 +86,12 @@ export default function AdminDashboard() {
         if (!token) { navigate('/login'); return; }
 
         try {
-            // 1. Dados Básicos (Pedidos e Alunos)
+            // 1. Dados Básicos
             const res = await fetch(`${API_URL}/api/admin/dashboard-data`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.status === 401 || res.status === 403) { localStorage.removeItem('token'); navigate('/login'); return; }
-            const json = await res.json();
-            setData(json);
+            setData(await res.json());
 
-            // 2. Métricas
+            // 2. Métricas (Agora busca os dados avançados)
             const resMetrics = await fetch(`${API_URL}/api/admin/metrics`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (resMetrics.ok) setMetrics(await resMetrics.json());
 
@@ -83,9 +106,8 @@ export default function AdminDashboard() {
         } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
-    // --- AÇÕES DO SISTEMA ---
+    // --- AÇÕES DO SISTEMA (MANTIDAS EXATAMENTE COMO NA V2) ---
 
-    // 1. Criar Cupom
     const handleCreateCoupon = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
@@ -97,7 +119,6 @@ export default function AdminDashboard() {
         else alert("Erro ao criar cupom.");
     };
 
-    // 2. Enviar Email em Massa
     const handleSendMassEmail = async (e) => {
         e.preventDefault();
         if (!confirm(`Tem certeza que deseja enviar este e-mail para TODOS os alunos?`)) return;
@@ -110,7 +131,6 @@ export default function AdminDashboard() {
         else alert("Erro no envio.");
     };
 
-    // 3. Criar Admin (Hierarquia)
     const handleCreateAdmin = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
@@ -123,7 +143,6 @@ export default function AdminDashboard() {
         else alert("Erro: " + json.error);
     };
 
-    // 4. Liberar Curso (Confirmar Pagamento)
     const handleApprovePayment = async (email) => {
         if (!window.confirm(`Confirmar pagamento para ${email}?`)) return;
         const token = localStorage.getItem('token');
@@ -134,10 +153,10 @@ export default function AdminDashboard() {
         if (res.ok) { alert("Curso Liberado!"); fetchData(); } else { alert("Erro."); }
     };
 
-    // 5. Atualizar Rastreio (Com Transportadora Manual)
     const handleUpdateTracking = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
+        // Lógica de transportadora manual (V2)
         const finalCarrier = trackingData.carrier === 'Outra' ? trackingData.customCarrier : trackingData.carrier;
         let finalUrl = trackingData.url;
         if (!finalUrl && finalCarrier === 'Correios' && trackingData.code) finalUrl = `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingData.code}`;
@@ -149,21 +168,16 @@ export default function AdminDashboard() {
         if (res.ok) { alert("Salvo!"); setModalType(null); fetchData(); } else { alert("Erro."); }
     };
 
-    // 6. Cadastrar Novo Aluno (V2 - Manual)
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        // Nota: Para funcionar 100% gravando no banco, requer rota backend específica. 
-        // Por enquanto, apenas alerta visual conforme solicitado anteriormente.
         alert("Dados capturados!\n\n(Requer implementação da rota '/api/admin/create-student' no backend para persistência real).");
         setModalType(null);
     };
 
-    // 7. Impersonate (Ver como Aluno)
     const handleImpersonate = (student) => {
         alert(`Acessando painel de ${student.name}...\n(Redirecionaria para o dashboard com token temporário)`);
     };
 
-    // Filtros
     const filteredOrders = data.orders.filter(o => o.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     const filteredStudents = data.students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -195,43 +209,93 @@ export default function AdminDashboard() {
             {/* CONTEÚDO */}
             <main className="flex-1 p-8 overflow-y-auto">
 
-                {/* --- ABA 1: MÉTRICAS (NASA) --- */}
+                {/* --- ABA 1: MÉTRICAS (DASHBOARD NASA ATUALIZADO) --- */}
                 {activeTab === 'metrics' && (
                     <div className="space-y-8 animate-fade-in">
-                        <h1 className="text-2xl font-bold text-gray-800">Visão Geral</h1>
-                        <div className="grid md:grid-cols-2 gap-8">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                                <h3 className="font-bold text-gray-600 mb-4">Vendas por Mês (Confirmadas)</h3>
-                                <div className="h-64">
+                        <header className="flex justify-between items-end">
+                            <div>
+                                <h1 className="text-3xl font-extrabold text-gray-800">Dashboard</h1>
+                                <p className="text-gray-500 text-sm mt-1">Visão geral do desempenho da escola.</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Sistema Operante</span>
+                            </div>
+                        </header>
+
+                        {/* KPIS CARDS */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <StatCard title="Faturamento Total" value={formatCurrency(metrics.kpis.revenue)} icon={DollarSign} color="bg-green-500" subtext="+ Crescimento contínuo" />
+                            <StatCard title="Alunos Ativos" value={metrics.kpis.students} icon={Users} color="bg-blue-500" subtext="Matrículas ativas" />
+                            <StatCard title="Pedidos Pendentes" value={metrics.kpis.pending} icon={Clock} color="bg-orange-500" subtext="Aguardando ação" />
+                            <StatCard title="Ticket Médio" value={formatCurrency(metrics.kpis.ticket)} icon={ShoppingBag} color="bg-purple-500" subtext={`Conv: ${metrics.kpis.conversion}%`} />
+                        </div>
+
+                        {/* GRÁFICOS */}
+                        <div className="grid lg:grid-cols-3 gap-8">
+                            {/* GRÁFICO DE ÁREA (FATURAMENTO) */}
+                            <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2"><TrendingUp size={20} className="text-[#1a365d]" /> Evolução de Faturamento</h3>
+                                <div className="h-72">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={metrics.sales}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Bar dataKey="vendas" fill="#1a365d" />
-                                        </BarChart>
+                                        <AreaChart data={metrics.charts.sales}>
+                                            <defs>
+                                                <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#1a365d" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#1a365d" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                            <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R$${value / 1000}k`} />
+                                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                            <Area type="monotone" dataKey="vendas" stroke="#1a365d" fillOpacity={1} fill="url(#colorVendas)" strokeWidth={3} />
+                                        </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
                             </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                                <h3 className="font-bold text-gray-600 mb-4">Perfil dos Alunos (Idade)</h3>
-                                <div className="h-64">
+
+                            {/* GRÁFICO DE DONUT (STATUS) */}
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                <h3 className="font-bold text-gray-700 mb-6">Status dos Pedidos</h3>
+                                <div className="h-72">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
-                                            <Pie data={metrics.ages} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" label>
-                                                {metrics.ages.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                            <Pie data={metrics.charts.status} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                {metrics.charts.status.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                             </Pie>
                                             <Tooltip />
+                                            <Legend verticalAlign="bottom" height={36} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </div>
                             </div>
                         </div>
+
+                        {/* LISTA DE ÚLTIMAS VENDAS */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="p-6 border-b border-gray-100">
+                                <h3 className="font-bold text-gray-700">Últimas Transações Confirmadas</h3>
+                            </div>
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
+                                    <tr><th className="p-4">Data</th><th className="p-4">Cliente</th><th className="p-4 text-right">Valor</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {metrics.recent.map((sale, i) => (
+                                        <tr key={i} className="hover:bg-gray-50">
+                                            <td className="p-4 text-sm text-gray-600">{formatDate(sale.createdAt)}</td>
+                                            <td className="p-4 font-bold text-gray-800">{sale.user?.name}</td>
+                                            <td className="p-4 text-right font-mono text-green-600 font-bold">{formatCurrency(sale.total)}</td>
+                                        </tr>
+                                    ))}
+                                    {metrics.recent.length === 0 && <tr><td colSpan="3" className="p-6 text-center text-gray-400">Nenhuma venda recente.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
-                {/* --- ABA 2: PEDIDOS --- */}
+                {/* --- ABA 2: PEDIDOS (V2 - MANTIDA) --- */}
                 {activeTab === 'orders' && (
                     <div className="animate-fade-in">
                         <header className="flex justify-between mb-6">
@@ -267,13 +331,12 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 3: ALUNOS (COM BOTÃO NOVO ALUNO E OLHO) --- */}
+                {/* --- ABA 3: ALUNOS (V2 - MANTIDA - Novo Aluno + Olho) --- */}
                 {activeTab === 'students' && (
                     <div className="animate-fade-in">
                         <header className="flex justify-between items-center mb-6">
                             <h1 className="text-2xl font-bold text-gray-800">Alunos</h1>
                             <div className="flex gap-4">
-                                {/* Botão V2: Novo Aluno Manual */}
                                 <button onClick={() => setModalType('NEW_USER')} className="bg-[#1a365d] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-900 transition"><UserPlus size={16} /> Novo Aluno</button>
                                 <input type="text" placeholder="Buscar..." className="p-2 border rounded-lg" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
@@ -288,7 +351,6 @@ export default function AdminDashboard() {
                                             <td className="p-4">{s.user?.name}<br /><span className="text-xs text-gray-500">{s.user?.email}</span></td>
                                             <td className="p-4"><span className="bg-blue-50 text-[#1a365d] px-2 py-1 rounded font-mono text-xs">{s.enrollments?.[0]?.code || '-'}</span></td>
                                             <td className="p-4 text-right flex justify-end gap-2">
-                                                {/* Botão V2: Impersonate (Olho) */}
                                                 <button onClick={() => handleImpersonate(s)} className="text-gray-500 bg-gray-50 p-2 rounded hover:bg-gray-200" title="Ver como Aluno"><Eye size={16} /></button>
                                                 <button onClick={() => { setSelectedItem(s.user); setUserData({ name: s.user?.name, email: s.user?.email, phone: s.user?.phone || '' }); setModalType('EDIT_USER'); }} className="text-blue-600 bg-blue-50 p-2 rounded hover:bg-blue-100" title="Editar"><Edit size={16} /></button>
                                                 <button onClick={() => { setSelectedItem(s.user); setModalType('CHANGE_PASSWORD'); }} className="text-yellow-600 bg-yellow-50 p-2 rounded hover:bg-yellow-100" title="Senha"><Key size={16} /></button>
@@ -301,7 +363,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 4: CUPONS (NASA) --- */}
+                {/* --- ABA 4: CUPONS --- */}
                 {activeTab === 'coupons' && (
                     <div className="animate-fade-in">
                         <header className="flex justify-between mb-6">
@@ -320,7 +382,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 5: SEGURANÇA (ADMINS) --- */}
+                {/* --- ABA 5: SEGURANÇA --- */}
                 {activeTab === 'security' && (
                     <div className="animate-fade-in">
                         <h1 className="text-2xl font-bold text-gray-800 mb-4">Gestão de Acesso</h1>
@@ -371,7 +433,7 @@ export default function AdminDashboard() {
 
             </main>
 
-            {/* --- MODAIS GERAIS --- */}
+            {/* --- MODAIS GERAIS (V2 + NASA) --- */}
             {modalType && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
@@ -445,7 +507,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        {/* 6. EDITAR USUÁRIO */}
+                        {/* 6. EDITAR USUÁRIO (V2) */}
                         {modalType === 'EDIT_USER' && (
                             <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
                                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Dados</h3>
@@ -457,7 +519,7 @@ export default function AdminDashboard() {
                             </form>
                         )}
 
-                        {/* 7. TROCAR SENHA */}
+                        {/* 7. TROCAR SENHA (V2) */}
                         {modalType === 'CHANGE_PASSWORD' && (
                             <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
                                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Key className="text-yellow-600" /> Trocar Senha</h3>
