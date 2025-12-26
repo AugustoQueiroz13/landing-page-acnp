@@ -243,7 +243,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 h-20 flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
             <img
-              src="/logo-curso.png"
+              src="/educacional/logo-curso.png"
               alt="Robótica Educacional ACNP"
               className="h-10 md:h-16 w-auto"
               onError={(e) => { e.target.onerror = null; e.target.parentElement.innerHTML = '<span class="font-extrabold text-[#1a365d] text-2xl">ROBÓTICA ACNP</span>' }}
@@ -334,7 +334,7 @@ export default function LandingPage() {
               <div className="absolute -inset-1 bg-gradient-to-r from-[#ffd700] to-[#e53e3e] rounded-[2.5rem] blur opacity-75"></div>
               <div className="relative rounded-[2rem] p-2 bg-white/20 backdrop-blur-sm">
                 <img
-                  src="/hero-kit.jpg"
+                  src="/educacional/hero-kit.jpg"
                   alt="Kit Robótica ACNP"
                   className="rounded-[1.8rem] shadow-2xl border-4 border-white/20 w-full object-cover"
                   onError={(e) => { e.target.onerror = null; e.target.parentElement.innerHTML = `<div class="bg-white/10 backdrop-blur-md rounded-[2rem] border-2 border-dashed border-white/30 h-80 flex items-center justify-center text-white font-bold">Imagem Hero Kit</div>` }}
@@ -387,18 +387,18 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-auto md:h-[500px]">
             <div className="md:col-span-2 md:row-span-2 rounded-3xl overflow-hidden shadow-xl relative group h-[300px] md:h-full">
-              <img src="/galeria-kit-close.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Kit Detalhe" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
+              <img src="/educacional/galeria-kit-close.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Kit Detalhe" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
               <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 to-transparent p-8">
                 <p className="text-white font-bold text-xl">Peças Reais & Seguras</p>
                 <p className="text-gray-300 text-sm">Sem solda, apenas encaixe e lógica.</p>
               </div>
             </div>
             <div className="rounded-3xl overflow-hidden shadow-lg relative group h-[240px]">
-              <img src="/galeria-apostila.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Apostila" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
+              <img src="/educacional/galeria-apostila.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Apostila" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
               <div className="absolute bottom-4 left-4 bg-white/90 px-3 py-1 rounded-lg text-xs font-bold text-[#1a365d]">Didática Visual</div>
             </div>
             <div className="rounded-3xl overflow-hidden shadow-lg relative group h-[240px]">
-              <img src="/galeria-aluno.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Aluno" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
+              <img src="/educacional/galeria-aluno.jpg" className="w-full h-full object-cover transition duration-700 group-hover:scale-110" alt="Aluno" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
               <div className="absolute bottom-4 left-4 bg-white/90 px-3 py-1 rounded-lg text-xs font-bold text-[#1a365d]">Foco Total</div>
             </div>
           </div>
@@ -505,7 +505,7 @@ export default function LandingPage() {
           <div className="order-1 md:order-2 flex justify-center">
             <div className="relative w-64 h-64 md:w-80 md:h-80">
               <div className="absolute inset-0 bg-[#e53e3e] rounded-full opacity-10 transform translate-x-4 translate-y-4"></div>
-              <img src="/professor.jpg" alt="Prof. Augusto Queiroz" className="w-full h-full object-cover rounded-full border-4 border-white shadow-xl relative z-10 bg-gray-200" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
+              <img src="/educacional/professor.jpg" alt="Prof. Augusto Queiroz" className="w-full h-full object-cover rounded-full border-4 border-white shadow-xl relative z-10 bg-gray-200" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
             </div>
           </div>
         </div>
@@ -528,7 +528,7 @@ export default function LandingPage() {
           </div>
           <div className="relative transform hover:scale-105 transition duration-500">
             <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-20 rounded-full"></div>
-            <img src="/certificado.jpg" alt="Modelo do Certificado ACNP" className="relative rounded-xl shadow-2xl border-4 border-white rotate-2 hover:rotate-0 transition duration-300 w-full" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#fef3c7'; }} />
+            <img src="/educacional/certificado.jpg" alt="Modelo do Certificado ACNP" className="relative rounded-xl shadow-2xl border-4 border-white rotate-2 hover:rotate-0 transition duration-300 w-full" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#fef3c7'; }} />
             <div className="absolute -bottom-5 -right-5 bg-white p-4 rounded-xl shadow-lg border border-gray-100"><Award size={32} className="text-yellow-500" /></div>
           </div>
         </div>
@@ -543,7 +543,7 @@ export default function LandingPage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-8 text-left bg-white p-8 md:p-12 rounded-[2rem] shadow-xl items-center">
             <div className="flex flex-col items-center text-center">
-              <img src="/logo-acnp.png" alt="Logo ACNP" className="h-36 w-auto mb-6" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
+              <img src="/educacional/logo-acnp.png" alt="Logo ACNP" className="h-36 w-auto mb-6" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.style.backgroundColor = '#f3f4f6'; }} />
               <div className="flex items-center gap-2 mb-2 bg-blue-100 px-4 py-1 rounded-full"><Calendar size={18} className="text-[#1a365d]" /><span className="font-bold text-[#1a365d] text-sm">Fundada em 1987</span></div>
               <a href="https://nascentepequena.org/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#1a365d] hover:bg-[#e53e3e] px-6 py-3 rounded-full mt-4 transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-1"><Globe size={16} /> Conheça nossa História Completa</a>
             </div>
@@ -710,7 +710,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center md:items-start">
             <div className="bg-white p-3 rounded-xl mb-4 inline-block">
               <img
-                src="/logo-acnp.png"
+                src="/educacional/logo-acnp.png"
                 alt="ACNP"
                 className="h-16 w-auto"
                 onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="font-extrabold text-[#1a365d] text-2xl px-2">ACNP</span>' }}
