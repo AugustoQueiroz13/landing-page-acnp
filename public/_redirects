@@ -1,1 +1,5 @@
+# Regra 1: Permite que o Vite encontre os arquivos mesmo com o prefixo /educacional
+/educacional/* /:splat  200
+
+# Regra 2: Fallback para o React Router (SPA) funcionar ao recarregar a página
 /* /index.html  200
