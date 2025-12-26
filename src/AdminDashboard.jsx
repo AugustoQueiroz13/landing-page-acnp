@@ -5,12 +5,12 @@ import {
     LayoutDashboard, Package, Users, LogOut,
     Truck, CheckCircle, Search, Edit, X, Save,
     ExternalLink, AlertCircle, Key, UserPlus, Eye,
-    BarChart2, Tag, Shield, Mail, Activity, EyeOff, Send, // <--- Send mantido
-    DollarSign, TrendingUp, ShoppingBag, Clock // <--- Novos ícones do Dashboard NASA
+    BarChart2, Tag, Shield, Mail, Activity, EyeOff, Send,
+    DollarSign, TrendingUp, ShoppingBag, Clock
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, Legend, BarChart, Bar // <--- Adicionado AreaChart e Legend
+    PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 
 // Cores Modernas
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
         } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
-    // --- AÇÕES DO SISTEMA (MANTIDAS EXATAMENTE COMO NA V2) ---
+    // --- AÇÕES DO SISTEMA ---
 
     const handleCreateCoupon = async (e) => {
         e.preventDefault();
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
     const handleUpdateTracking = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
-        // Lógica de transportadora manual (V2)
+        // Lógica de transportadora manual
         const finalCarrier = trackingData.carrier === 'Outra' ? trackingData.customCarrier : trackingData.carrier;
         let finalUrl = trackingData.url;
         if (!finalUrl && finalCarrier === 'Correios' && trackingData.code) finalUrl = `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingData.code}`;
@@ -174,8 +174,31 @@ export default function AdminDashboard() {
         setModalType(null);
     };
 
-    const handleImpersonate = (student) => {
-        alert(`Acessando painel de ${student.name}...\n(Redirecionaria para o dashboard com token temporário)`);
+    // --- FUNÇÃO IMPERSONATE REAL (CORRIGIDA) ---
+    const handleImpersonate = async (student) => {
+        if (!confirm(`Deseja acessar o sistema como o aluno ${student.name}?`)) return;
+
+        const token = localStorage.getItem('token'); // Token do Admin
+        try {
+            const res = await fetch(`${API_URL}/api/admin/impersonate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ userId: student.user.id })
+            });
+
+            const json = await res.json();
+
+            if (json.success) {
+                localStorage.setItem('token', json.token); // Salva token do aluno
+                alert(`Acesso concedido! Redirecionando para o painel de ${student.name}...`);
+                navigate('/dashboard'); // Vai para o painel do aluno
+                window.location.reload(); // Recarrega para aplicar
+            } else {
+                alert("Erro: " + json.error);
+            }
+        } catch (error) {
+            alert("Erro ao conectar.");
+        }
     };
 
     const filteredOrders = data.orders.filter(o => o.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -295,7 +318,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 2: PEDIDOS (V2 - MANTIDA) --- */}
+                {/* --- ABA 2: PEDIDOS --- */}
                 {activeTab === 'orders' && (
                     <div className="animate-fade-in">
                         <header className="flex justify-between mb-6">
@@ -311,14 +334,7 @@ export default function AdminDashboard() {
                                             <td className="p-4 text-sm">{formatDate(o.createdAt)}</td>
                                             <td className="p-4">{o.user?.name}<br /><span className="text-xs text-gray-500">{o.user?.email}</span></td>
                                             <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${o.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{translateStatus(o.status)}</span></td>
-                                            <td className="p-4 text-xs text-gray-600">
-                                                {o.shipment ?
-                                                    <span>
-                                                        <span className="font-bold">{o.shipment.carrier}</span><br />
-                                                        {o.shipment.trackingCode}
-                                                    </span>
-                                                    : '-'}
-                                            </td>
+                                            <td className="p-4 text-xs text-gray-600">{o.shipment ? <span><span className="font-bold">{o.shipment.carrier}</span><br />{o.shipment.trackingCode}</span> : '-'}</td>
                                             <td className="p-4 text-right">
                                                 {o.status === 'PENDING' && <button onClick={() => handleApprovePayment(o.user.email)} className="bg-green-600 text-white px-3 py-1 rounded text-xs">Liberar</button>}
                                                 {o.status === 'PAID' && <button onClick={() => { setSelectedItem(o); setModalType('TRACKING'); setTrackingData({ code: o.shipment?.trackingCode || '', carrier: ['Correios', 'Jadlog', 'Azul Cargo', 'Motoboy', 'Retirada'].includes(o.shipment?.carrier) ? o.shipment?.carrier : 'Outra', customCarrier: o.shipment?.carrier || '', url: o.shipment?.trackingUrl || '' }); }} className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs">Envio</button>}
@@ -331,7 +347,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 3: ALUNOS (V2 - MANTIDA - Novo Aluno + Olho) --- */}
+                {/* --- ABA 3: ALUNOS --- */}
                 {activeTab === 'students' && (
                     <div className="animate-fade-in">
                         <header className="flex justify-between items-center mb-6">
@@ -394,7 +410,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- ABA 6: E-MAIL EM MASSA --- */}
+                {/* --- ABA 6: E-MAIL --- */}
                 {activeTab === 'email' && (
                     <div className="animate-fade-in max-w-2xl">
                         <h1 className="text-2xl font-bold text-gray-800 mb-6">Comunicar com Alunos</h1>
@@ -433,51 +449,36 @@ export default function AdminDashboard() {
 
             </main>
 
-            {/* --- MODAIS GERAIS (V2 + NASA) --- */}
+            {/* --- MODAIS GERAIS --- */}
             {modalType && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
                         <button onClick={() => setModalType(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={24} /></button>
 
-                        {/* 1. RASTREIO (COM OPÇÃO OUTRA) */}
+                        {/* 1. RASTREIO */}
                         {modalType === 'TRACKING' && (
                             <form onSubmit={handleUpdateTracking} className="space-y-4">
                                 <h3 className="font-bold text-lg">Atualizar Envio</h3>
                                 <input type="text" placeholder="Código" className="w-full p-3 border rounded-xl uppercase" value={trackingData.code} onChange={e => setTrackingData({ ...trackingData, code: e.target.value })} />
                                 <select className="w-full p-3 border rounded-xl bg-white" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })}>
-                                    <option value="Correios">Correios</option>
-                                    <option value="Jadlog">Jadlog</option>
-                                    <option value="Azul Cargo">Azul Cargo</option>
-                                    <option value="Motoboy">Motoboy</option>
-                                    <option value="Retirada">Retirada</option>
-                                    <option value="Outra">Outra (Digitar)</option>
+                                    <option value="Correios">Correios</option><option value="Jadlog">Jadlog</option><option value="Azul Cargo">Azul Cargo</option><option value="Motoboy">Motoboy</option><option value="Retirada">Retirada</option><option value="Outra">Outra</option>
                                 </select>
                                 {trackingData.carrier === 'Outra' && <input type="text" placeholder="Nome da Transportadora" className="w-full p-3 border rounded-xl" value={trackingData.customCarrier} onChange={e => setTrackingData({ ...trackingData, customCarrier: e.target.value })} />}
                                 <button className="w-full bg-[#1a365d] text-white py-3 rounded-xl font-bold">Salvar</button>
                             </form>
                         )}
 
-                        {/* 2. NOVO ALUNO (V2) */}
+                        {/* 2. NOVO ALUNO */}
                         {modalType === 'NEW_USER' && (
                             <form onSubmit={handleCreateUser} className="space-y-3">
                                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><UserPlus className="text-[#1a365d]" /> Cadastrar Aluno Manual</h3>
-                                <p className="text-xs text-gray-500">Cadastre vendas manuais (balcão/zap) aqui.</p>
-
                                 <input type="text" placeholder="Nome Responsável" className="w-full p-3 border rounded-xl" value={newStudentData.parentName} onChange={e => setNewStudentData({ ...newStudentData, parentName: e.target.value })} />
                                 <input type="email" placeholder="E-mail" className="w-full p-3 border rounded-xl" value={newStudentData.email} onChange={e => setNewStudentData({ ...newStudentData, email: e.target.value })} />
-                                <div className="grid grid-cols-2 gap-3">
-                                    <input type="text" placeholder="CPF" className="w-full p-3 border rounded-xl" value={newStudentData.cpf} onChange={e => setNewStudentData({ ...newStudentData, cpf: e.target.value })} />
-                                    <input type="text" placeholder="Telefone" className="w-full p-3 border rounded-xl" value={newStudentData.phone} onChange={e => setNewStudentData({ ...newStudentData, phone: e.target.value })} />
-                                </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <input type="text" placeholder="Nome Aluno" className="w-full p-3 border rounded-xl col-span-2" value={newStudentData.name} onChange={e => setNewStudentData({ ...newStudentData, name: e.target.value })} />
-                                    <input type="number" placeholder="Idade" className="w-full p-3 border rounded-xl" value={newStudentData.age} onChange={e => setNewStudentData({ ...newStudentData, age: e.target.value })} />
-                                </div>
                                 <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 mt-2">Salvar Cadastro</button>
                             </form>
                         )}
 
-                        {/* 3. NOVO CUPOM (NASA) */}
+                        {/* 3. NOVO CUPOM */}
                         {modalType === 'NEW_COUPON' && (
                             <form onSubmit={handleCreateCoupon} className="space-y-4">
                                 <h3 className="font-bold text-lg">Novo Cupom</h3>
@@ -487,7 +488,7 @@ export default function AdminDashboard() {
                             </form>
                         )}
 
-                        {/* 4. NOVO ADMIN (NASA) */}
+                        {/* 4. NOVO ADMIN */}
                         {modalType === 'NEW_ADMIN' && (
                             <form onSubmit={handleCreateAdmin} className="space-y-4">
                                 <h3 className="font-bold text-lg">Novo Administrador</h3>
@@ -498,7 +499,7 @@ export default function AdminDashboard() {
                             </form>
                         )}
 
-                        {/* 5. CONFIRMAR EMAIL (NASA) */}
+                        {/* 5. CONFIRMAR EMAIL */}
                         {modalType === 'CONFIRM_EMAIL' && (
                             <div className="text-center">
                                 <h3 className="font-bold text-lg mb-2">Confirmar Envio?</h3>
@@ -507,7 +508,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        {/* 6. EDITAR USUÁRIO (V2) */}
+                        {/* 6. EDITAR USUÁRIO */}
                         {modalType === 'EDIT_USER' && (
                             <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
                                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Dados</h3>
@@ -519,7 +520,7 @@ export default function AdminDashboard() {
                             </form>
                         )}
 
-                        {/* 7. TROCAR SENHA (V2) */}
+                        {/* 7. TROCAR SENHA */}
                         {modalType === 'CHANGE_PASSWORD' && (
                             <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
                                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Key className="text-yellow-600" /> Trocar Senha</h3>

@@ -11,7 +11,7 @@ import {
   CreditCard, QrCode, Barcode, Phone, Mail, FileCheck,
   LogIn, MessageCircle, ArrowUp, Send,
   Instagram, Facebook, Camera, UserPlus,
-  MessageSquare, MousePointer
+  MessageSquare, MousePointer, Tag // <--- Adicionei Tag aqui
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO DA API ---
@@ -111,6 +111,12 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isSendingContact, setIsSendingContact] = useState(false);
+
+  // --- ESTADOS PARA CUPOM (NOVO) ---
+  const [couponCode, setCouponCode] = useState('');
+  const [couponData, setCouponData] = useState(null); // { discount: 10, valid: true }
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   // Estados do formulário de compra
   const [formData, setFormData] = useState({
     nome: '', cpf: '', email: '', telefone: '',
@@ -161,6 +167,31 @@ export default function LandingPage() {
     setFormData({ ...formData, [name]: v });
   };
 
+  // --- FUNÇÃO PARA VALIDAR CUPOM ---
+  const handleValidateCoupon = async () => {
+    if (!couponCode) return;
+    setIsValidatingCoupon(true);
+    try {
+      const res = await fetch(`${API_URL}/api/validar-cupom`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: couponCode })
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setCouponData(data);
+        alert(`Cupom Aplicado! Desconto de ${data.discount}%`);
+      } else {
+        setCouponData(null);
+        alert('Cupom inválido ou expirado.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao validar cupom.');
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
   const handlePurchase = async (event) => {
     event.preventDefault();
     setIsLoading(true);
@@ -174,7 +205,8 @@ export default function LandingPage() {
         cep: formData.cep, logradouro: formData.endereco, numero: formData.numero,
         complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade
       },
-      itens: ['curso-robotica-educacional-completo']
+      itens: ['curso-robotica-educacional-completo'],
+      cupomCode: couponData ? couponData.code : null // <--- ENVIA O CUPOM SE EXISTIR
     };
 
     try {
@@ -629,9 +661,44 @@ export default function LandingPage() {
                   <div><label className="block text-sm font-bold text-gray-600 mb-1 ml-1">Complemento</label><input type="text" name="complemento" value={formData.complemento} onChange={handleInputChange} className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#e53e3e] focus:bg-white outline-none transition" placeholder="Apto, Bloco (Opcional)" /></div>
                 </div>
               </div>
-              <div className="pt-6">
+
+              {/* ÁREA DE CUPOM DE DESCONTO (NOVO) */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><Tag size={12} /> Possui Cupom de Desconto?</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Digite seu código"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 p-3 border border-gray-300 rounded-lg uppercase font-bold text-[#1a365d] outline-none focus:border-[#e53e3e] text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleValidateCoupon}
+                    disabled={isValidatingCoupon || couponData}
+                    className={`px-4 py-2 rounded-lg font-bold text-white transition text-sm ${couponData ? 'bg-green-500' : 'bg-gray-400 hover:bg-gray-500'}`}
+                  >
+                    {couponData ? 'Aplicado' : (isValidatingCoupon ? '...' : 'Aplicar')}
+                  </button>
+                </div>
+                {couponData && (
+                  <div className="mt-2 text-green-600 text-xs font-bold flex justify-between animate-fade-in">
+                    <span>Desconto de {couponData.discount}% aplicado!</span>
+                    <span>- R$ {((294 * couponData.discount) / 100).toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2">
                 <Button type="submit" variant="primary" fullWidth disabled={isLoading} className="text-xl py-5 shadow-2xl shadow-red-200 flex flex-col items-center justify-center leading-tight h-auto gap-1">
-                  {isLoading ? "Processando..." : <><span className="flex items-center gap-2">Pagar R$ 294,00 e Finalizar <ArrowRight size={24} /></span></>}
+                  {isLoading ? "Processando..." : (
+                    <>
+                      <span className="flex items-center gap-2">
+                        Pagar {couponData ? `R$ ${(294 * (1 - couponData.discount / 100)).toFixed(2).replace('.', ',')}` : 'R$ 294,00'} e Finalizar <ArrowRight size={24} />
+                      </span>
+                    </>
+                  )}
                 </Button>
                 <div className="mt-4 flex flex-col items-center gap-2 text-xs text-gray-400 font-bold uppercase tracking-wide">
                   <div className="flex items-center gap-2"><Lock size={12} /> Compra 100% Segura</div>
