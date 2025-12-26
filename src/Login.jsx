@@ -90,7 +90,7 @@ export default function Login() {
                     <div className="flex justify-center mb-6">
                         {/* Tenta carregar a logo, se não existir, mostra um ícone genérico ou nada */}
                         <img
-                            src="/logo-curso.png"
+                            src="/educacional/logo-curso.png"
                             alt="Logo ACNP"
                             className="h-24 w-auto object-contain"
                             onError={(e) => e.target.style.display = 'none'}

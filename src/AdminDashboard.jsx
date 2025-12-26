@@ -4,36 +4,54 @@ import { API_URL } from './config';
 import {
     LayoutDashboard, Package, Users, LogOut,
     Truck, CheckCircle, Search, Edit, X, Save,
-    ExternalLink, AlertCircle
+    ExternalLink, AlertCircle, Key, UserPlus, Eye,
+    BarChart2, Tag, Shield, Mail, Activity, EyeOff
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
+// Cores para Gráficos
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 const translateStatus = (status) => {
     const map = {
-        'PENDING': 'Pendente',
-        'PAID': 'Pago',
-        'PREPARING': 'Em Preparação',
-        'SHIPPED': 'Enviado',
-        'DELIVERED': 'Entregue',
-        'CANCELED': 'Cancelado'
+        'PENDING': 'Pendente', 'PAID': 'Pago / Confirmado', 'PREPARING': 'Em Preparação',
+        'SHIPPED': 'Enviado', 'DELIVERED': 'Entregue', 'CANCELED': 'Cancelado'
     };
     return map[status] || status;
 };
 
 const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    return new Date(dateString).toLocaleDateString('pt-BR') + ' ' + new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('orders');
+    const [activeTab, setActiveTab] = useState('metrics'); // Começa nas Métricas
     const [data, setData] = useState({ orders: [], students: [] });
+    const [metrics, setMetrics] = useState({ sales: [], ages: [] });
+    const [logs, setLogs] = useState([]);
+    const [coupons, setCoupons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Modal de Rastreio
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [trackingData, setTrackingData] = useState({ code: '', carrier: 'Correios', url: '' });
+    // --- MODAIS & ESTADOS DE EDIÇÃO ---
+    const [modalType, setModalType] = useState(null); // 'TRACKING', 'EDIT_USER', 'CHANGE_PASSWORD', 'NEW_USER', 'NEW_COUPON', 'NEW_ADMIN', 'CONFIRM_EMAIL'
+    const [selectedItem, setSelectedItem] = useState(null);
+
+    // Forms
+    const [trackingData, setTrackingData] = useState({ code: '', carrier: 'Correios', customCarrier: '', url: '' });
+    const [userData, setUserData] = useState({ name: '', email: '', phone: '' });
+    const [newPassword, setNewPassword] = useState('');
+
+    // Forms Novos (NASA + V2)
+    const [couponData, setCouponData] = useState({ code: '', discount: '' });
+    const [emailData, setEmailData] = useState({ subject: '', message: '' });
+    const [newAdminData, setNewAdminData] = useState({ name: '', email: '', password: '' });
+    // Estado para Novo Aluno Manual (V2)
+    const [newStudentData, setNewStudentData] = useState({
+        name: '', email: '', cpf: '', phone: '', age: '', parentName: ''
+    });
 
     useEffect(() => {
         fetchData();
@@ -44,320 +62,413 @@ export default function AdminDashboard() {
         if (!token) { navigate('/login'); return; }
 
         try {
-            const res = await fetch(`${API_URL}/api/admin/dashboard-data`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (res.status === 401 || res.status === 403) {
-                alert("Acesso negado. Área restrita a administradores.");
-                localStorage.removeItem('token');
-                navigate('/login');
-                return;
-            }
-
+            // 1. Dados Básicos (Pedidos e Alunos)
+            const res = await fetch(`${API_URL}/api/admin/dashboard-data`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.status === 401 || res.status === 403) { localStorage.removeItem('token'); navigate('/login'); return; }
             const json = await res.json();
             setData(json);
-        } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-        } finally {
-            setLoading(false);
-        }
+
+            // 2. Métricas
+            const resMetrics = await fetch(`${API_URL}/api/admin/metrics`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (resMetrics.ok) setMetrics(await resMetrics.json());
+
+            // 3. Logs
+            const resLogs = await fetch(`${API_URL}/api/admin/logs`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (resLogs.ok) setLogs(await resLogs.json());
+
+            // 4. Cupons
+            const resCoupons = await fetch(`${API_URL}/api/admin/coupons`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (resCoupons.ok) setCoupons(await resCoupons.json());
+
+        } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
+    // --- AÇÕES DO SISTEMA ---
+
+    // 1. Criar Cupom
+    const handleCreateCoupon = async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/admin/coupons`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(couponData)
+        });
+        if (res.ok) { alert("Cupom Criado!"); setModalType(null); fetchData(); }
+        else alert("Erro ao criar cupom.");
+    };
+
+    // 2. Enviar Email em Massa
+    const handleSendMassEmail = async (e) => {
+        e.preventDefault();
+        if (!confirm(`Tem certeza que deseja enviar este e-mail para TODOS os alunos?`)) return;
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/admin/mass-email`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(emailData)
+        });
+        if (res.ok) { alert("E-mails enviados!"); setModalType(null); fetchData(); }
+        else alert("Erro no envio.");
+    };
+
+    // 3. Criar Admin (Hierarquia)
+    const handleCreateAdmin = async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/admin/create-admin`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(newAdminData)
+        });
+        const json = await res.json();
+        if (res.ok) { alert("Novo Admin criado com sucesso!"); setModalType(null); fetchData(); }
+        else alert("Erro: " + json.error);
+    };
+
+    // 4. Liberar Curso (Confirmar Pagamento)
+    const handleApprovePayment = async (email) => {
+        if (!window.confirm(`Confirmar pagamento para ${email}?`)) return;
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/admin/simular-pagamento`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ email })
+        });
+        if (res.ok) { alert("Curso Liberado!"); fetchData(); } else { alert("Erro."); }
+    };
+
+    // 5. Atualizar Rastreio (Com Transportadora Manual)
     const handleUpdateTracking = async (e) => {
         e.preventDefault();
-        if (!selectedOrder) return;
-
         const token = localStorage.getItem('token');
-
-        // Gera link automático se for Correios e não tiver link manual
+        const finalCarrier = trackingData.carrier === 'Outra' ? trackingData.customCarrier : trackingData.carrier;
         let finalUrl = trackingData.url;
-        if (!finalUrl && trackingData.carrier === 'Correios' && trackingData.code) {
-            finalUrl = `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingData.code}`;
-        }
+        if (!finalUrl && finalCarrier === 'Correios' && trackingData.code) finalUrl = `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingData.code}`;
 
-        try {
-            const res = await fetch(`${API_URL}/api/admin/atualizar-rastreio`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    orderId: selectedOrder.id,
-                    trackingCode: trackingData.code,
-                    carrier: trackingData.carrier,
-                    trackingUrl: finalUrl
-                })
-            });
-
-            if (res.ok) {
-                alert("Rastreio atualizado com sucesso!");
-                setSelectedOrder(null);
-                fetchData(); // Recarrega a lista
-            } else {
-                alert("Erro ao atualizar.");
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Erro de conexão.");
-        }
+        const res = await fetch(`${API_URL}/api/admin/atualizar-rastreio`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ orderId: selectedItem.id, trackingCode: trackingData.code, carrier: finalCarrier, trackingUrl: finalUrl })
+        });
+        if (res.ok) { alert("Salvo!"); setModalType(null); fetchData(); } else { alert("Erro."); }
     };
 
-    const handleSimulatePayment = async (email) => {
-        if (!window.confirm(`Tem certeza que deseja simular o pagamento para ${email}? (Apenas para Testes)`)) return;
-
-        try {
-            const res = await fetch(`${API_URL}/api/admin/simular-pagamento`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const json = await res.json();
-            if (json.success) {
-                alert(json.message);
-                fetchData();
-            } else {
-                alert("Erro: " + json.error);
-            }
-        } catch (error) {
-            alert("Erro ao simular.");
-        }
+    // 6. Cadastrar Novo Aluno (V2 - Manual)
+    const handleCreateUser = async (e) => {
+        e.preventDefault();
+        // Nota: Para funcionar 100% gravando no banco, requer rota backend específica. 
+        // Por enquanto, apenas alerta visual conforme solicitado anteriormente.
+        alert("Dados capturados!\n\n(Requer implementação da rota '/api/admin/create-student' no backend para persistência real).");
+        setModalType(null);
     };
 
-    const filteredOrders = data.orders.filter(o =>
-        o.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 7. Impersonate (Ver como Aluno)
+    const handleImpersonate = (student) => {
+        alert(`Acessando painel de ${student.name}...\n(Redirecionaria para o dashboard com token temporário)`);
+    };
 
-    const filteredStudents = data.students.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filtros
+    const filteredOrders = data.orders.filter(o => o.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredStudents = data.students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500 font-bold">Carregando Painel Admin...</div>;
+    if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-[#1a365d]">Carregando Painel Master...</div>;
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans flex">
 
-            {/* SIDEBAR ADMIN */}
+            {/* SIDEBAR */}
             <aside className="w-64 bg-[#111827] text-gray-300 flex-shrink-0 flex flex-col">
                 <div className="p-6 border-b border-gray-800">
                     <h2 className="text-white font-bold text-xl tracking-wide">ACNP Admin</h2>
-                    <span className="text-xs text-gray-500 uppercase">Painel Master</span>
+                    <span className="text-xs text-[#e53e3e] font-bold uppercase">Master Panel</span>
                 </div>
-
                 <nav className="flex-1 p-4 space-y-2">
-                    <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'orders' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}>
-                        <Package size={20} /> Pedidos e Envios
-                    </button>
-                    <button onClick={() => setActiveTab('students')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'students' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}>
-                        <Users size={20} /> Alunos e Notas
-                    </button>
+                    <button onClick={() => setActiveTab('metrics')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'metrics' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><BarChart2 size={20} /> Dashboard</button>
+                    <button onClick={() => setActiveTab('orders')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'orders' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Package size={20} /> Pedidos</button>
+                    <button onClick={() => setActiveTab('students')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'students' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Users size={20} /> Alunos</button>
+                    <button onClick={() => setActiveTab('coupons')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'coupons' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Tag size={20} /> Cupons</button>
+                    <button onClick={() => setActiveTab('email')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'email' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Mail size={20} /> Mensagens</button>
+                    <button onClick={() => setActiveTab('security')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'security' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Shield size={20} /> Segurança</button>
+                    <button onClick={() => setActiveTab('logs')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'logs' ? 'bg-[#e53e3e] text-white' : 'hover:bg-gray-800'}`}><Activity size={20} /> Auditoria</button>
                 </nav>
-
                 <div className="p-4 border-t border-gray-800">
-                    <button onClick={() => { localStorage.removeItem('token'); navigate('/login'); }} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 w-full px-4">
-                        <LogOut size={16} /> Sair do Sistema
-                    </button>
+                    <button onClick={() => { localStorage.removeItem('token'); navigate('/login'); }} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 w-full px-4"><LogOut size={16} /> Sair</button>
                 </div>
             </aside>
 
-            {/* CONTEÚDO PRINCIPAL */}
+            {/* CONTEÚDO */}
             <main className="flex-1 p-8 overflow-y-auto">
-                <header className="flex justify-between items-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-800">
-                        {activeTab === 'orders' ? 'Gestão de Pedidos' : 'Gestão de Alunos'}
-                    </h1>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Buscar por nome, email ou ID..."
-                            className="pl-10 pr-4 py-2 border rounded-lg w-80 focus:ring-2 focus:ring-[#e53e3e] outline-none"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    </div>
-                </header>
 
-                {/* TABELA DE PEDIDOS */}
-                {activeTab === 'orders' && (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">ID / Data</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Cliente</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Status Pagto</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Status Envio</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredOrders.map(order => (
-                                    <tr key={order.id} className="hover:bg-gray-50 transition">
-                                        <td className="p-4">
-                                            <p className="font-mono text-xs text-gray-500">{order.id.substring(0, 8)}...</p>
-                                            <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>
-                                        </td>
-                                        <td className="p-4">
-                                            <p className="font-bold text-gray-800">{order.user?.name}</p>
-                                            <p className="text-xs text-gray-500">{order.user?.email}</p>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold ${order.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                {translateStatus(order.status)}
-                                            </span>
-                                            {order.status === 'PENDING' && (
-                                                <button onClick={() => handleSimulatePayment(order.user.email)} className="block mt-1 text-[10px] text-blue-600 hover:underline">
-                                                    Simular Pagto (Teste)
-                                                </button>
-                                            )}
-                                        </td>
-                                        <td className="p-4">
-                                            {order.shipment ? (
-                                                <div>
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.shipment.status === 'SHIPPED' || order.shipment.status === 'DELIVERED' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                        {translateStatus(order.shipment.status)}
-                                                    </span>
-                                                    {order.shipment.trackingCode && <p className="text-xs font-mono mt-1 text-gray-500">{order.shipment.trackingCode}</p>}
-                                                </div>
-                                            ) : <span className="text-xs text-gray-400">-</span>}
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            {order.status === 'PAID' && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedOrder(order);
-                                                        setTrackingData({
-                                                            code: order.shipment?.trackingCode || '',
-                                                            carrier: order.shipment?.carrier || 'Correios',
-                                                            url: order.shipment?.trackingUrl || ''
-                                                        });
-                                                    }}
-                                                    className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
-                                                    title="Atualizar Envio"
-                                                >
-                                                    <Truck size={18} />
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                {/* --- ABA 1: MÉTRICAS (NASA) --- */}
+                {activeTab === 'metrics' && (
+                    <div className="space-y-8 animate-fade-in">
+                        <h1 className="text-2xl font-bold text-gray-800">Visão Geral</h1>
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                                <h3 className="font-bold text-gray-600 mb-4">Vendas por Mês (Confirmadas)</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={metrics.sales}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Bar dataKey="vendas" fill="#1a365d" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                                <h3 className="font-bold text-gray-600 mb-4">Perfil dos Alunos (Idade)</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={metrics.ages} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" label>
+                                                {metrics.ages.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {/* TABELA DE ALUNOS */}
-                {activeTab === 'students' && (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Aluno</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Responsável</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Matrícula</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Progresso / Nota</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase">Certificado</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredStudents.map(student => {
-                                    const enrollment = student.enrollments[0];
-                                    const bestAttempt = enrollment?.examAttempts?.find(a => a.passed);
-                                    return (
-                                        <tr key={student.id} className="hover:bg-gray-50 transition">
-                                            <td className="p-4 font-bold text-gray-800">{student.name}</td>
-                                            <td className="p-4">
-                                                <p className="text-sm text-gray-600">{student.user?.name}</p>
-                                                <p className="text-xs text-gray-400">{student.user?.email}</p>
+                {/* --- ABA 2: PEDIDOS --- */}
+                {activeTab === 'orders' && (
+                    <div className="animate-fade-in">
+                        <header className="flex justify-between mb-6">
+                            <h1 className="text-2xl font-bold text-gray-800">Pedidos</h1>
+                            <input type="text" placeholder="Buscar..." className="p-2 border rounded-lg" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        </header>
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 border-b"><tr><th className="p-4">Data</th><th className="p-4">Cliente</th><th className="p-4">Status</th><th className="p-4">Envio</th><th className="p-4 text-right">Ação</th></tr></thead>
+                                <tbody>
+                                    {filteredOrders.map(o => (
+                                        <tr key={o.id} className="border-b hover:bg-gray-50">
+                                            <td className="p-4 text-sm">{formatDate(o.createdAt)}</td>
+                                            <td className="p-4">{o.user?.name}<br /><span className="text-xs text-gray-500">{o.user?.email}</span></td>
+                                            <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${o.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{translateStatus(o.status)}</span></td>
+                                            <td className="p-4 text-xs text-gray-600">
+                                                {o.shipment ?
+                                                    <span>
+                                                        <span className="font-bold">{o.shipment.carrier}</span><br />
+                                                        {o.shipment.trackingCode}
+                                                    </span>
+                                                    : '-'}
                                             </td>
-                                            <td className="p-4">
-                                                <p className="font-mono text-xs text-[#1a365d] bg-blue-50 px-2 py-1 rounded inline-block">{enrollment?.code || '-'}</p>
-                                                <p className="text-xs text-gray-400 mt-1">{translateStatus(enrollment?.status)}</p>
-                                            </td>
-                                            <td className="p-4">
-                                                {bestAttempt ? (
-                                                    <span className="text-green-600 font-bold text-sm">Aprovado (Nota: {bestAttempt.score})</span>
-                                                ) : (
-                                                    <span className="text-gray-400 text-sm">Em andamento</span>
-                                                )}
-                                            </td>
-                                            <td className="p-4">
-                                                {enrollment?.certificate ? (
-                                                    <a href={`${API_URL}/api/certificado/${student.id}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
-                                                        <CheckCircle size={14} /> Baixar PDF
-                                                    </a>
-                                                ) : <span className="text-gray-300 text-xs">Pendente</span>}
+                                            <td className="p-4 text-right">
+                                                {o.status === 'PENDING' && <button onClick={() => handleApprovePayment(o.user.email)} className="bg-green-600 text-white px-3 py-1 rounded text-xs">Liberar</button>}
+                                                {o.status === 'PAID' && <button onClick={() => { setSelectedItem(o); setModalType('TRACKING'); setTrackingData({ code: o.shipment?.trackingCode || '', carrier: ['Correios', 'Jadlog', 'Azul Cargo', 'Motoboy', 'Retirada'].includes(o.shipment?.carrier) ? o.shipment?.carrier : 'Outra', customCarrier: o.shipment?.carrier || '', url: o.shipment?.trackingUrl || '' }); }} className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs">Envio</button>}
                                             </td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ABA 3: ALUNOS (COM BOTÃO NOVO ALUNO E OLHO) --- */}
+                {activeTab === 'students' && (
+                    <div className="animate-fade-in">
+                        <header className="flex justify-between items-center mb-6">
+                            <h1 className="text-2xl font-bold text-gray-800">Alunos</h1>
+                            <div className="flex gap-4">
+                                {/* Botão V2: Novo Aluno Manual */}
+                                <button onClick={() => setModalType('NEW_USER')} className="bg-[#1a365d] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-900 transition"><UserPlus size={16} /> Novo Aluno</button>
+                                <input type="text" placeholder="Buscar..." className="p-2 border rounded-lg" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            </div>
+                        </header>
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 border-b"><tr><th className="p-4">Aluno</th><th className="p-4">Responsável</th><th className="p-4">Matrícula</th><th className="p-4 text-right">Ações</th></tr></thead>
+                                <tbody>
+                                    {filteredStudents.map(s => (
+                                        <tr key={s.id} className="border-b hover:bg-gray-50">
+                                            <td className="p-4 font-bold">{s.name}</td>
+                                            <td className="p-4">{s.user?.name}<br /><span className="text-xs text-gray-500">{s.user?.email}</span></td>
+                                            <td className="p-4"><span className="bg-blue-50 text-[#1a365d] px-2 py-1 rounded font-mono text-xs">{s.enrollments?.[0]?.code || '-'}</span></td>
+                                            <td className="p-4 text-right flex justify-end gap-2">
+                                                {/* Botão V2: Impersonate (Olho) */}
+                                                <button onClick={() => handleImpersonate(s)} className="text-gray-500 bg-gray-50 p-2 rounded hover:bg-gray-200" title="Ver como Aluno"><Eye size={16} /></button>
+                                                <button onClick={() => { setSelectedItem(s.user); setUserData({ name: s.user?.name, email: s.user?.email, phone: s.user?.phone || '' }); setModalType('EDIT_USER'); }} className="text-blue-600 bg-blue-50 p-2 rounded hover:bg-blue-100" title="Editar"><Edit size={16} /></button>
+                                                <button onClick={() => { setSelectedItem(s.user); setModalType('CHANGE_PASSWORD'); }} className="text-yellow-600 bg-yellow-50 p-2 rounded hover:bg-yellow-100" title="Senha"><Key size={16} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ABA 4: CUPONS (NASA) --- */}
+                {activeTab === 'coupons' && (
+                    <div className="animate-fade-in">
+                        <header className="flex justify-between mb-6">
+                            <h1 className="text-2xl font-bold text-gray-800">Cupons de Desconto</h1>
+                            <button onClick={() => setModalType('NEW_COUPON')} className="bg-[#1a365d] text-white px-4 py-2 rounded-lg flex items-center gap-2"><Tag size={16} /> Criar Cupom</button>
+                        </header>
+                        <div className="grid gap-4 md:grid-cols-3">
+                            {coupons.map(c => (
+                                <div key={c.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                    <h3 className="text-2xl font-bold text-[#e53e3e]">{c.code}</h3>
+                                    <p className="text-gray-600">{c.discount}% de Desconto</p>
+                                    <p className="text-xs text-gray-400 mt-2">{c.active ? 'Ativo' : 'Inativo'}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ABA 5: SEGURANÇA (ADMINS) --- */}
+                {activeTab === 'security' && (
+                    <div className="animate-fade-in">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-4">Gestão de Acesso</h1>
+                        <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-xl mb-6">
+                            <h3 className="font-bold text-yellow-800 flex items-center gap-2"><Shield size={20} /> Área Restrita (Master)</h3>
+                            <p className="text-sm text-yellow-700 mt-2">Adicione novos administradores para ajudar na gestão. Eles terão acesso a tudo, exceto criar novos admins.</p>
+                            <button onClick={() => setModalType('NEW_ADMIN')} className="mt-4 bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Adicionar Novo Admin</button>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ABA 6: E-MAIL EM MASSA --- */}
+                {activeTab === 'email' && (
+                    <div className="animate-fade-in max-w-2xl">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-6">Comunicar com Alunos</h1>
+                        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                            <label className="block text-sm font-bold text-gray-600 mb-2">Assunto do E-mail</label>
+                            <input type="text" className="w-full p-3 border rounded-xl mb-4" placeholder="Ex: Novidades no Curso!" value={emailData.subject} onChange={e => setEmailData({ ...emailData, subject: e.target.value })} />
+
+                            <label className="block text-sm font-bold text-gray-600 mb-2">Mensagem</label>
+                            <textarea rows="6" className="w-full p-3 border rounded-xl mb-4" placeholder="Escreva sua mensagem..." value={emailData.message} onChange={e => setEmailData({ ...emailData, message: e.target.value })}></textarea>
+
+                            <button onClick={() => setModalType('CONFIRM_EMAIL')} className="w-full bg-[#1a365d] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Send size={18} /> Enviar para Todos</button>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ABA 7: AUDITORIA --- */}
+                {activeTab === 'logs' && (
+                    <div className="animate-fade-in">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-6">Logs do Sistema</h1>
+                        <div className="bg-white rounded-xl shadow-sm p-4">
+                            <ul className="space-y-4">
+                                {logs.map(log => (
+                                    <li key={log.id} className="border-b pb-4 last:border-0 last:pb-0">
+                                        <div className="flex justify-between">
+                                            <span className="font-bold text-[#1a365d]">{log.action}</span>
+                                            <span className="text-xs text-gray-400">{formatDate(log.createdAt)}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600">{log.details}</p>
+                                        <p className="text-xs text-gray-400 mt-1">Admin: {log.admin?.name || 'Sistema'}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
                 )}
 
             </main>
 
-            {/* MODAL DE ATUALIZAÇÃO DE RASTREIO */}
-            {selectedOrder && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-fade-in">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-gray-800">Atualizar Envio</h3>
-                            <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
-                        </div>
+            {/* --- MODAIS GERAIS --- */}
+            {modalType && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={() => setModalType(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={24} /></button>
 
-                        <form onSubmit={handleUpdateTracking} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-1">Código de Rastreio</label>
-                                <input
-                                    type="text"
-                                    value={trackingData.code}
-                                    onChange={e => setTrackingData({ ...trackingData, code: e.target.value })}
-                                    className="w-full p-3 border rounded-xl font-mono text-lg uppercase"
-                                    placeholder="Ex: AA123456789BR"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-1">Transportadora</label>
-                                <select
-                                    value={trackingData.carrier}
-                                    onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })}
-                                    className="w-full p-3 border rounded-xl bg-white"
-                                >
+                        {/* 1. RASTREIO (COM OPÇÃO OUTRA) */}
+                        {modalType === 'TRACKING' && (
+                            <form onSubmit={handleUpdateTracking} className="space-y-4">
+                                <h3 className="font-bold text-lg">Atualizar Envio</h3>
+                                <input type="text" placeholder="Código" className="w-full p-3 border rounded-xl uppercase" value={trackingData.code} onChange={e => setTrackingData({ ...trackingData, code: e.target.value })} />
+                                <select className="w-full p-3 border rounded-xl bg-white" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })}>
                                     <option value="Correios">Correios</option>
                                     <option value="Jadlog">Jadlog</option>
                                     <option value="Azul Cargo">Azul Cargo</option>
-                                    <option value="Motoboy">Motoboy (Local)</option>
-                                    <option value="Retirada">Retirada na Escola</option>
+                                    <option value="Motoboy">Motoboy</option>
+                                    <option value="Retirada">Retirada</option>
+                                    <option value="Outra">Outra (Digitar)</option>
                                 </select>
-                            </div>
+                                {trackingData.carrier === 'Outra' && <input type="text" placeholder="Nome da Transportadora" className="w-full p-3 border rounded-xl" value={trackingData.customCarrier} onChange={e => setTrackingData({ ...trackingData, customCarrier: e.target.value })} />}
+                                <button className="w-full bg-[#1a365d] text-white py-3 rounded-xl font-bold">Salvar</button>
+                            </form>
+                        )}
 
-                            {/* Campo de URL Manual (Opcional) */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-600 mb-1">Link de Rastreio (Opcional)</label>
-                                <input
-                                    type="url"
-                                    value={trackingData.url}
-                                    onChange={e => setTrackingData({ ...trackingData, url: e.target.value })}
-                                    className="w-full p-3 border rounded-xl text-sm"
-                                    placeholder="https://..."
-                                />
-                                <p className="text-xs text-gray-400 mt-1">Se vazio, gera automático para Correios.</p>
-                            </div>
+                        {/* 2. NOVO ALUNO (V2) */}
+                        {modalType === 'NEW_USER' && (
+                            <form onSubmit={handleCreateUser} className="space-y-3">
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><UserPlus className="text-[#1a365d]" /> Cadastrar Aluno Manual</h3>
+                                <p className="text-xs text-gray-500">Cadastre vendas manuais (balcão/zap) aqui.</p>
 
-                            <button type="submit" className="w-full bg-[#1a365d] text-white font-bold py-3 rounded-xl hover:bg-blue-900 flex items-center justify-center gap-2 mt-4">
-                                <Save size={18} /> Salvar e Notificar Cliente
-                            </button>
-                        </form>
+                                <input type="text" placeholder="Nome Responsável" className="w-full p-3 border rounded-xl" value={newStudentData.parentName} onChange={e => setNewStudentData({ ...newStudentData, parentName: e.target.value })} />
+                                <input type="email" placeholder="E-mail" className="w-full p-3 border rounded-xl" value={newStudentData.email} onChange={e => setNewStudentData({ ...newStudentData, email: e.target.value })} />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input type="text" placeholder="CPF" className="w-full p-3 border rounded-xl" value={newStudentData.cpf} onChange={e => setNewStudentData({ ...newStudentData, cpf: e.target.value })} />
+                                    <input type="text" placeholder="Telefone" className="w-full p-3 border rounded-xl" value={newStudentData.phone} onChange={e => setNewStudentData({ ...newStudentData, phone: e.target.value })} />
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <input type="text" placeholder="Nome Aluno" className="w-full p-3 border rounded-xl col-span-2" value={newStudentData.name} onChange={e => setNewStudentData({ ...newStudentData, name: e.target.value })} />
+                                    <input type="number" placeholder="Idade" className="w-full p-3 border rounded-xl" value={newStudentData.age} onChange={e => setNewStudentData({ ...newStudentData, age: e.target.value })} />
+                                </div>
+                                <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 mt-2">Salvar Cadastro</button>
+                            </form>
+                        )}
+
+                        {/* 3. NOVO CUPOM (NASA) */}
+                        {modalType === 'NEW_COUPON' && (
+                            <form onSubmit={handleCreateCoupon} className="space-y-4">
+                                <h3 className="font-bold text-lg">Novo Cupom</h3>
+                                <input type="text" placeholder="CÓDIGO (ex: ALUNO10)" className="w-full p-3 border rounded-xl uppercase" onChange={e => setCouponData({ ...couponData, code: e.target.value })} />
+                                <input type="number" placeholder="% Desconto (ex: 10)" className="w-full p-3 border rounded-xl" onChange={e => setCouponData({ ...couponData, discount: e.target.value })} />
+                                <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">Criar Cupom</button>
+                            </form>
+                        )}
+
+                        {/* 4. NOVO ADMIN (NASA) */}
+                        {modalType === 'NEW_ADMIN' && (
+                            <form onSubmit={handleCreateAdmin} className="space-y-4">
+                                <h3 className="font-bold text-lg">Novo Administrador</h3>
+                                <input type="text" placeholder="Nome" className="w-full p-3 border rounded-xl" onChange={e => setNewAdminData({ ...newAdminData, name: e.target.value })} />
+                                <input type="email" placeholder="E-mail" className="w-full p-3 border rounded-xl" onChange={e => setNewAdminData({ ...newAdminData, email: e.target.value })} />
+                                <input type="password" placeholder="Senha" className="w-full p-3 border rounded-xl" onChange={e => setNewAdminData({ ...newAdminData, password: e.target.value })} />
+                                <button className="w-full bg-yellow-600 text-white py-3 rounded-xl font-bold">Criar Acesso</button>
+                            </form>
+                        )}
+
+                        {/* 5. CONFIRMAR EMAIL (NASA) */}
+                        {modalType === 'CONFIRM_EMAIL' && (
+                            <div className="text-center">
+                                <h3 className="font-bold text-lg mb-2">Confirmar Envio?</h3>
+                                <p className="text-sm text-gray-600 mb-4">Isso enviará um e-mail para TODOS os alunos cadastrados.</p>
+                                <button onClick={handleSendMassEmail} className="w-full bg-red-600 text-white py-3 rounded-xl font-bold">Sim, Enviar Agora</button>
+                            </div>
+                        )}
+
+                        {/* 6. EDITAR USUÁRIO */}
+                        {modalType === 'EDIT_USER' && (
+                            <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Dados</h3>
+                                <p className="text-xs text-gray-500 mb-4">Editando: {selectedItem?.name}</p>
+                                <div><label className="block text-sm font-bold text-gray-600 mb-1">Nome Completo</label><input type="text" value={userData.name} onChange={e => setUserData({ ...userData, name: e.target.value })} className="w-full p-3 border rounded-xl" /></div>
+                                <div><label className="block text-sm font-bold text-gray-600 mb-1">E-mail</label><input type="email" value={userData.email} onChange={e => setUserData({ ...userData, email: e.target.value })} className="w-full p-3 border rounded-xl" /></div>
+                                <div><label className="block text-sm font-bold text-gray-600 mb-1">Telefone</label><input type="text" value={userData.phone} onChange={e => setUserData({ ...userData, phone: e.target.value })} className="w-full p-3 border rounded-xl" /></div>
+                                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 mt-4">Salvar Alterações</button>
+                            </form>
+                        )}
+
+                        {/* 7. TROCAR SENHA */}
+                        {modalType === 'CHANGE_PASSWORD' && (
+                            <form onSubmit={() => { alert('Funcionalidade visual.'); setModalType(null); }} className="space-y-4">
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Key className="text-yellow-600" /> Trocar Senha</h3>
+                                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100 text-xs text-yellow-800 mb-2"><AlertCircle size={14} className="inline mr-1" /> Cuidado: O usuário será desconectado e precisará usar esta nova senha.</div>
+                                <div><label className="block text-sm font-bold text-gray-600 mb-1">Nova Senha</label><input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Digite a nova senha..." /></div>
+                                <button type="submit" className="w-full bg-yellow-600 text-white font-bold py-3 rounded-xl hover:bg-yellow-700 mt-4">Confirmar Troca</button>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
-
         </div>
     );
 }
