@@ -11,7 +11,8 @@ import {
   CreditCard, QrCode, Barcode, Phone, Mail, FileCheck,
   LogIn, MessageCircle, ArrowUp, Send,
   Instagram, Facebook, Camera, UserPlus,
-  MessageSquare, MousePointer, Tag // <--- Adicionei Tag aqui
+  MessageSquare, MousePointer, Tag, // Mantido
+  Linkedin, Brain // <--- NOVOS ÍCONES ADICIONADOS
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO DA API ---
@@ -388,8 +389,19 @@ export default function LandingPage() {
             <h2 className="text-3xl md:text-4xl font-extrabold text-[#1a365d] mb-4 flex items-center justify-center gap-3">
               <Zap size={36} className="text-[#e53e3e]" /> Como funciona o aprendizado?
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Nossa metodologia une o físico e o digital para garantir que o aluno aprenda fazendo.</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">Enviamos para você o material completo contendo o kit Arduíno com mais de 80 peças e apostila didática ilustrada com todas as instruções para criar projetos incríveis.</p>
           </div>
+
+          {/* --- NOVO: BLOCO DE BENEFÍCIOS COGNITIVOS --- */}
+          <div className="bg-blue-50 border border-blue-100 rounded-3xl p-8 mb-16 max-w-5xl mx-auto text-center shadow-sm">
+            <h3 className="text-[#1a365d] font-bold mb-4 flex items-center justify-center gap-2 text-xl">
+              <Brain size={28} className="text-[#e53e3e]" /> Desenvolvimento Cognitivo Completo
+            </h3>
+            <p className="text-gray-700 leading-relaxed text-lg">
+              A Robótica Educacional vai muito além da tecnologia. Ela estimula o <strong>raciocínio lógico</strong>, a capacidade de <strong>resolução de problemas complexos</strong> e a <strong>criatividade</strong>. Essas são competências fundamentais que preparam seu filho para ter sucesso e destaque no futuro em <strong>qualquer profissão</strong>, seja ele um engenheiro, médico ou advogado.
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: <BookOpen size={32} />, color: "bg-blue-500", title: "1. O Guia", text: "Apostila impressa passo a passo. A criança lê, interpreta e executa sem distrações." },
@@ -404,6 +416,20 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* --- NOVO: BLOCO C++ --- */}
+          <div className="mt-16 bg-white border-2 border-[#00599C] rounded-[2rem] p-8 md:p-10 flex flex-col md:flex-row items-center gap-8 shadow-xl max-w-4xl mx-auto transform hover:scale-[1.01] transition duration-300">
+            <div className="shrink-0 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/1/18/ISO_C%2B%2B_Logo.svg" alt="Logo C++" className="h-24 w-auto" />
+            </div>
+            <div className="text-center md:text-left">
+              <h3 className="text-2xl font-extrabold text-[#00599C] mb-3">Lógica de Programação com C++</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Diferente de cursos que usam apenas "blocos de montar", aqui seu filho aprende uma <strong>linguagem de programação profissional</strong>. O C++ é a base de grandes sistemas mundiais. Ensinamos a lógica estruturada que abre portas para aprender qualquer outra tecnologia no futuro de forma sólida.
+              </p>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -533,6 +559,10 @@ export default function LandingPage() {
               <div className="bg-blue-50 px-4 py-2 rounded-lg text-[#1a365d] font-bold text-sm flex items-center gap-2"><GraduationCap size={16} /> Engº Computação</div>
               <div className="bg-blue-50 px-4 py-2 rounded-lg text-[#1a365d] font-bold text-sm flex items-center gap-2"><Award size={16} /> Juiz FLL & WRO</div>
               <div className="bg-blue-50 px-4 py-2 rounded-lg text-[#1a365d] font-bold text-sm flex items-center gap-2"><Code size={16} /> CodeClub</div>
+              {/* --- NOVO: BOTÃO LINKEDIN --- */}
+              <a href="https://www.linkedin.com/in/queiroz-augusto/" target="_blank" rel="noopener noreferrer" className="bg-[#0077b5] hover:bg-[#005582] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
+                <Linkedin size={16} /> Ver Perfil Profissional
+              </a>
             </div>
           </div>
           <div className="order-1 md:order-2 flex justify-center">
@@ -830,10 +860,10 @@ export default function LandingPage() {
             </ul>
 
             <div className="flex gap-4 justify-center md:justify-start">
-              <a href="https://www.instagram.com/associacaonascentepequena" target="_blank" rel="noopener noreferrer" className="bg-blue-900 p-3 rounded-xl hover:bg-[#e53e3e] transition-colors group">
+              <a href="https://www.instagram.com/roboticaeducacionalacnp" target="_blank" rel="noopener noreferrer" className="bg-blue-900 p-3 rounded-xl hover:bg-[#e53e3e] transition-colors group">
                 <Instagram size={20} className="group-hover:text-white" />
               </a>
-              <a href="https://www.facebook.com/AssociacaoCulturalNascentePequena" target="_blank" rel="noopener noreferrer" className="bg-blue-900 p-3 rounded-xl hover:bg-[#e53e3e] transition-colors group">
+              <a href="https://www.facebook.com/roboticaeducacionalacnp" target="_blank" rel="noopener noreferrer" className="bg-blue-900 p-3 rounded-xl hover:bg-[#e53e3e] transition-colors group">
                 <Facebook size={20} className="group-hover:text-white" />
               </a>
             </div>
@@ -843,7 +873,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 mt-12 pt-8 border-t border-blue-900/50 text-center">
           <p className="text-blue-500 text-xs"><strong>© 2026 Robótica Educacional ACNP</strong></p>
           <p className="text-blue-500 text-xs">Todos os direitos reservados</p>
-          <p className="text-blue-500 text-xs"><strong>Sistema criado por:</strong> Augusto Queiroz</p>
+          <p className="text-blue-500 text-xs"><strong>Sistema desenvolvido por:</strong> Augusto Queiroz</p>
         </div>
       </footer>
 
